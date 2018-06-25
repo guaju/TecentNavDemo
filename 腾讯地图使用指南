@@ -1,0 +1,111 @@
+腾讯地图sdk集成
+
+1、注册开放平台
+2、创建自己的应用(注册高德 百度时、正常的注册应用，腾讯这展示的是注册一个秘钥)不需要配置sha1
+3、配置的时候 ，如果只做腾讯地图的话 ，可以使用maven配置方式（当然也可以用jar包的方式）
+	如果后期配置定位的话，需要导入jar包
+	（高德是可以使用maven方式导入地图和定位的）
+	（百度没有maven方式，只能导jar包）
+		导入依赖的同时，还需要导入so文件，
+	so文件可以方式libs目录，也可以放到jniLibs    
+		如果放到libs目录，需要去gradle中声明jni的文件夹	
+		如果放到jnilibs的话，就不需要去gradle中去声明了，因为本身就是jniLibs文件
+
+
+4、需要去清单文件中配置权限和appid
+
+5、配置好了之后，就可以做地图 定位  marker 等操作
+
+6、腾讯地图有两种方式实现地图的展示
+		<mapview> 就是一个组件，放到布局中使用，activity 或fragment通过findviewbyid 找到这个控件，然后去初始化，并且绑定activity 或fragment的声明周期
+
+		SupporMapFragment  只需要在activity的布局中或者代码中添加本Fragment即可，不需要我们再去绑定生命周期等方法
+
+7、定位，定位的话，还得需要单独到定位的jar包，不能添加依赖，因为没有依赖，依赖好之后才能去做定位
+    定位有自己的权限，可以与腾讯地图重复
+		定位步骤：
+		①、去实现腾讯定位接口：
+					onLocationChanged   在定位成功的时候触发
+					location对象，就能拿到定位信息
+					onStatusUpdate  一般不用
+
+		②、去创建定位请求
+					TencentLocationRequest request = TencentLocationRequest.create()；
+				这个请求将来要发起，请求可以配置一些参数，比如定位的精确度、定位的频率等等
+		③、创建定位管理者 
+			TencentLocationManager locationManager = TencentLocationManager.getInstance(context);
+		④、通过定位管理者TencentLocationManager 将定位请求（TencentLocationRequest）和定位监听（TencentLocationListener）绑定起来，就可以发起定位请求
+
+int error = locationManager.requestLocationUpdates(request, listener);
+
+error就是定位之后的返回码，返回码标识
+
+0
+注册位置监听器成功
+1
+设备缺少使用腾讯定位SDK需要的基本条件
+2
+配置的 Key 不正确
+3
+自动加载libtencentloc.so失败，可能由以下原因造成：
+1、这往往是由工程中的so与设备不兼容造成的，应该添加相应版本so文件;
+2、如果您使用AndroidStudio,可能是gradle没有正确指向so文件加载位置，可以按照这里配置您的gradle;
+		
+		定位完成之后，默认腾讯是没有定位蓝点的，需要我们自己去标注定位蓝点：
+		通过marker方式将定位点展示出来，然后通过
+		cameraupdate去将这个位置放置于屏幕的中心位置，并且去设置地图的缩放倍数
+		3-19
+8、marker展示  覆盖物
+
+		需要两个信息  
+		①、经纬度
+		②、BitmapDescripetion  图标
+
+//标注坐标
+LatLng latLng = new LatLng(39.906901,116.397972);
+
+
+final Marker marker = tencentMap.addMarker(new MarkerOptions().
+                position(latLng).
+                title("北京").
+                snippet("DefaultMarker"));
+
+//创建图标
+marker.setIcon(BitmapDescriptorFactory.fromResource(R.drawable.ic_launcher));
+
+9、infowindow  信息窗
+		跟高德地图类似，也是通过给地图设置infowindowadapter去实现
+
+	InfoWindowAdapter infoWindowAdapter = new InfoWindowAdapter() {
+ 
+    TextView tvTitle;
+ 
+    //返回View为信息窗自定义样式，返回null时为默认信息窗样式
+    @Override
+    public View getInfoWindow(final Marker arg0) {
+        // TODO Auto-generated method stub
+        if (arg0.equals(marker)) {
+            LinearLayout custInfowindow = (LinearLayout) View.inflate(
+                MarkerActivity.this, R.layout.cust_infowindow, null);
+            tvTitle = (TextView)custInfowindow.findViewById(R.id.tv_title);
+            tvTitle.setText(arg0.getTitle());
+            return custInfowindow;
+        }
+        return null;
+    }
+ 
+    //返回View为信息窗内容自定义样式，返回null时为默认信息窗样式
+    @Override
+    public View getInfoContents(Marker arg0) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+};
+ 
+//设置信息窗适配器
+tencentMap.setInfoWindowAdapter(infoWindowAdapter);
+			就能实现了
+
+9、marker  infowindow等点击事件，都可以通过tencentMap.setOnMarkerClickListener()
+tencentMap.setOnInfoWindowClickListener()实现
+10、路线规划
